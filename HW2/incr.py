@@ -6,6 +6,8 @@ def P(sema):
 def V(sema):
     sema.release()
 
+
+
 class Add(Thread):
 
     def __init__(self):
@@ -14,7 +16,9 @@ class Add(Thread):
     def run(self):
         for j in range(10000):
             for i in range(10):
+                P(index_matrix_semaphores[i])
                 matrix[i] = matrix[i] + 1
+                V(index_matrix_semaphores[i])
 
 class Sub(Thread):
 
@@ -24,10 +28,17 @@ class Sub(Thread):
     def run(self):
         for j in range(10000):
             for i in range(10):
+                P(index_matrix_semaphores[i])
                 matrix[i] = matrix[i] - 1
+                V(index_matrix_semaphores[i])
 
 
 matrix = [90, 90, 90, 90, 90, 90, 90, 90, 90, 90]
+
+index_matrix_semaphores = []
+
+for j in range(len(matrix)):
+    index_matrix_semaphores.append(Semaphore(1))
 
 a = Add()
 s = Sub()
