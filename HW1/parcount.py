@@ -1,6 +1,6 @@
 """A simulation for experimenting with multiple threads and processes"""
 
-from threading import Thread
+from threading import Thread, Semaphore
 import time
 import sys
 import random
@@ -13,16 +13,32 @@ from subprocess import Popen
 
 def do_step(i):
     """simulates a task that requires a bit of processing and some I/O"""
-    for j in range(1000):
-        random.seed(i)
-        val = random.gauss(0, 2)
-
+    ### Origional I/O Bound Version######
+    """simulates a task that requires a bit of processing and some I/O"""
+    time.sleep(0.01)
     random.seed(i)
     val = random.gauss(0, 2)
     if (val > 1):
         return 1
     else:
         return 0
+
+    #### New CPU Bound Version #############
+    # for j in range(1000):
+    #     random.seed(i)
+    #     val = random.gauss(0, 2)
+    #
+    # random.seed(i)
+    # val = random.gauss(0, 2)
+    # if (val > 1):
+    #     return 1
+    # else:
+    #     return 0
+
+
+
+
+
 
 
 def do_steps(k, n, N):
@@ -50,6 +66,8 @@ def run_sequential(N):
 ## threaded implementation #####################################################
 ################################################################################
 
+##### New Common Variable Threaded Implementation ##############################
+
 class ThreadedWorker(Thread):
     def __init__(self, k, n, N):
         """initialize this thread to be the kth of n worker threads"""
@@ -57,11 +75,21 @@ class ThreadedWorker(Thread):
         self.k = k
         self.n = n
         self.N = N
-        self.result = None
+
 
     def run(self):
+        global common_result
         """execute the worker thread's work"""
         self.result = do_steps(self.k, self.n, self.N)
+        common_result_sema.acquire()
+        common_result += self.result
+        common_result_sema.release()
+
+
+global common_result
+common_result = 0
+global common_result_sema
+common_result_sema = Semaphore(1)
 
 
 def run_threaded(num_threads, N):
@@ -72,6 +100,8 @@ def run_threaded(num_threads, N):
     # Note: use the threading module from the python standard library
     # Note: import threading; help(threading.Thread)
     # Note: be sure that your implementation is concurrent!
+
+    # Create shared variable and corresponding semaphore
 
     # Create threads, add them to thread_list, and start them running
     thread_list = []
@@ -84,12 +114,50 @@ def run_threaded(num_threads, N):
     for current_t in thread_list:
         current_t.join()
 
-    # Combines result
-    value_result = 0
-    for current_t in thread_list:
-        value_result += current_t.result
+    return common_result
 
-    return value_result
+
+#########################Origional Threaded Worker#############################
+# class ThreadedWorker(Thread):
+#     def __init__(self, k, n, N):
+#         """initialize this thread to be the kth of n worker threads"""
+#         Thread.__init__(self)
+#         self.k = k
+#         self.n = n
+#         self.N = N
+#         self.result = None
+#
+#     def run(self):
+#         """execute the worker thread's work"""
+#         self.result = do_steps(self.k, self.n, self.N)
+#
+#
+# def run_threaded(num_threads, N):
+#     """use num_thread threads to perform N steps"""
+#     # TODO: create num_threads workers
+#     # TODO: run them
+#     # TODO: collect the results and return their sum
+#     # Note: use the threading module from the python standard library
+#     # Note: import threading; help(threading.Thread)
+#     # Note: be sure that your implementation is concurrent!
+#
+#     # Create threads, add them to thread_list, and start them running
+#     thread_list = []
+#     for i in range(num_threads):
+#         current_thread = ThreadedWorker(i, num_threads, N)
+#         current_thread.start()
+#         thread_list.append(current_thread)
+#
+#     # Waits for threads to all finish
+#     for current_t in thread_list:
+#         current_t.join()
+#
+#     # Combines result
+#     value_result = 0
+#     for current_t in thread_list:
+#         value_result += current_t.result
+#
+#     return value_result
 
 
 ################################################################################
@@ -132,12 +200,10 @@ def run_multiproc(num_children, N):
     return result
 
 
-
 def run_child(k, n, N):
     """do the work of a single subprocess"""
     # TODO: do the work for the ith (of n) children
     return do_steps(k, n, N)
-
 
 
 ################################################################################
