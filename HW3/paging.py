@@ -130,11 +130,17 @@ class OPT(Pager):
         self.trace_counter = -1
         self.mem_populated = False
         self.pointer_to_populate = -1
-        self.hash_built = False
         self.address_dict = {}
 
+        # Build dictionary of all trace values and occurences
+        for i, address in enumerate(trace):
+            if address in self.address_dict:
+                self.address_dict[address].append(i)
+            else:
+                self.address_dict[address] = deque()
+                self.address_dict[address].append(i)
+
     def access(self, address):
-        #print("access")
         self.trace_counter += 1
         return Pager.access(self, address)
 
@@ -144,37 +150,24 @@ class OPT(Pager):
             self.pointer_to_populate += 1
             if self.pointer_to_populate == (self.num_frames - 1):
                 self.mem_populated = True
-                return self.pointer_to_populate
-            if not self.hash_built:
-                print("evict")
-                for i, address in enumerate(trace):
-                    if i % 10000 == 1:
-                        print(i)
-                    if address in self.address_dict:
-                        self.address_dict[address].append(i)
-                    else:
-                        self.address_dict[address] = deque()
-                        self.address_dict[address].append(i)
-                self.hash_built = True
+            return self.pointer_to_populate
 
-                print("finished!")
-            return 0
         else:
             # Hash has been built.
 
             # List of size num_frames. Each index is the next use of that address
             # Each index is set to the max in case that address is not used again
-            next_use = [len(trace) + 1] * self.num_frames
+            next_use = [sys.maxsize] * self.num_frames
             for i, address in enumerate(self.frames):
                 current_dq = self.address_dict[address]
-                start_length = len(current_dq)
-                if not start_length == 0:
-                    for ind in range(start_length):
-                        if not  len(self.address_dict[address]) == 0:
-                            if current_dq[ind] > self.trace_counter:
-                                self.address_dict[address].popleft()
-                            else:
-                                next_use[i] = self.address_dict[address].popleft()
+
+
+                # Iterates through the queue and pops occurences less than the current trace position
+                while len(current_dq) > 0 and current_dq[0] <= self.trace_counter:
+                    current_dq.popleft()
+
+                if len(current_dq) > 0:
+                    next_use[i] = current_dq[0]
 
             # In the form (index in frames, next index of address use in trace)
             ind_to_evict = (0,0)
@@ -182,98 +175,6 @@ class OPT(Pager):
                 if next_ind > ind_to_evict[1]:
                     ind_to_evict = (i, next_ind)
             return ind_to_evict[0]
-
-
-
-
-
-        #     number_of_threads = self.num_frames / 3
-        #     ind_to_evict = run_threaded(number_of_threads, self.num_frames, self.frames, self.trace_counter, len(trace))
-        #     return ind_to_evict[0]
-
-###########################################################################################
-
-
-# def do_step(address, current_trace, trace_size):
-#     first_instance = -1
-#     for j in range(current_trace, len(trace)):
-#         if address == trace[j]:
-#             first_instance = j
-#             pass
-#     if first_instance == -1:
-#         return (trace_size + 1)
-#     else:
-#         return first_instance
-#
-#
-#
-#
-# def do_steps(k, n, N, frames, current_trace, trace_size):
-#     """given N units of work divided into n batches, performs the kth batch (k is
-#        in the range [kN/n,(k+1)N/n)."""
-#     start = int(k * N / n)
-#     finish = int(min((k + 1) * N / n, N))
-#
-#     worst = (0, -1)
-#     for i in range(start, finish):
-#         first_instance = do_step(frames[i], current_trace, trace_size)
-#         if first_instance > worst[1]:
-#             worst = (i, first_instance)
-#     return worst
-#
-#
-# class ThreadedWorker(Thread):
-#     def __init__(self, k, n, N, frames, current_trace, trace_size):
-#         """initialize this thread to be the kth of n worker threads"""
-#         Thread.__init__(self)
-#         self.k = k
-#         self.n = n
-#         self.N = N
-#         self.frames = frames
-#         self.current_trace = current_trace
-#         self.trace_size = trace_size
-#
-#
-#     def run(self):
-#         global common_result
-#         """execute the worker thread's work"""
-#         self.result = do_steps(self.k, self.n, self.N, self.frames, self.current_trace, self.trace_size)
-#         common_result_sema.acquire()
-#         if self.result[1] > common_result[1]:
-#             common_result = self.result
-#         common_result_sema.release()
-#
-#
-# global common_result
-# common_result = (0, -1)
-# global common_result_sema
-# common_result_sema = Semaphore(1)
-#
-#
-# def run_threaded(num_threads, N, frames, current_trace, trace_size):
-#     """use num_thread threads to perform N steps"""
-#     # TODO: create num_threads workers
-#     # TODO: run them
-#     # TODO: collect the results and return their sum
-#     # Note: use the threading module from the python standard library
-#     # Note: import threading; help(threading.Thread)
-#     # Note: be sure that your implementation is concurrent!
-#
-#     # Create shared variable and corresponding semaphore
-#
-#     # Create threads, add them to thread_list, and start them running
-#     thread_list = []
-#     for i in range(num_threads):
-#         current_thread = ThreadedWorker(i, num_threads, N, frames, current_trace, trace_size)
-#         current_thread.start()
-#         thread_list.append(current_thread)
-#
-#     # Waits for threads to all finish
-#     for current_t in thread_list:
-#         current_t.join()
-#
-#     return common_result
-
 
 
 
