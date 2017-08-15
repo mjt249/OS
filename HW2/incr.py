@@ -1,7 +1,9 @@
 from threading import Thread, Semaphore
 
+
 def P(sema):
     sema.acquire()
+
 
 def V(sema):
     sema.release()

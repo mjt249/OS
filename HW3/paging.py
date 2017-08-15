@@ -59,7 +59,7 @@ class FIFO(Pager):
         evictee = self.head
         #Update pointer to next added
         if self.head == (self.num_frames - 1):
-            self.head == 0
+            self.head = 0
         else:
             self.head += 1
         return evictee
